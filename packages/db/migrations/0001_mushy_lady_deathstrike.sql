@@ -1,0 +1,1 @@
+ALTER TABLE "agreements" ADD COLUMN "email" text NOT NULL;

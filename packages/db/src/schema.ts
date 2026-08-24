@@ -6,6 +6,7 @@ export const agreements = pgTable("agreements", {
   firstName: text("first_name").notNull(),
   lastName: text("last_name").notNull(),
   phoneNumber: text("phone_number").notNull(),
+  email: text("email").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

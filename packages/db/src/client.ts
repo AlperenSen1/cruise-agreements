@@ -1,16 +1,13 @@
 import { desc, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
+import { config } from "config";
 import { agreementEventTypeSchema, agreementIdSchema, type AgreementsListQuery } from "types";
 import * as relations from "./relations";
 import { agreements, agreementsEvents } from "./schema";
 import * as schema from "./schema";
 
-if (!import.meta.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL is not set");
-}
-
-export const db = drizzle(postgres(import.meta.env.DATABASE_URL), {
+export const db = drizzle(postgres(config.DATABASE_URL), {
   schema: { ...schema, ...relations },
 });
 
@@ -19,6 +16,7 @@ export async function createAgreement(data: {
   firstName: string;
   lastName: string;
   phoneNumber: string;
+  email: string;
 }) {
   const [agreement] = await db.insert(agreements).values(data).returning();
   return agreement;
@@ -44,6 +42,15 @@ export async function getAgreementsWithLatestEvent({ limit, offset }: Agreements
       },
     },
   });
+}
+
+export async function getAgreementById(id: string) {
+  const validId = agreementIdSchema.parse(id);
+  const [agreement] = await db.select().from(agreements).where(eq(agreements.id, validId));
+  if (!agreement) {
+    throw new Error(`Agreement not found: ${id}`);
+  }
+  return agreement;
 }
 
 export async function deleteAgreement(id: string) {

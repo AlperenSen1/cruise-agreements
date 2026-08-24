@@ -19,6 +19,7 @@ export const createAgreementRequestSchema = z.object({
     phoneNumber: z
       .string()
       .regex(/^\+?[0-9]{7,15}$/, "Phone number must contain digits only"),
+    email: z.email(),
   }),
 });
 

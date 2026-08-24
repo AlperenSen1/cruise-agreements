@@ -1,24 +1,39 @@
 import { defineAction } from "astro:actions";
 import { z } from "astro/zod";
-import { createAgreement, createAgreementEvent, deleteAgreement } from "db";
+import { createAgreement, createAgreementEvent, deleteAgreement, getAgreementById } from "db";
 import { agreementIdSchema, createAgreementRequestSchema } from "types";
-import { factory, type TemplateId } from "../agreements";
+import { factory, templateIds, type TemplateId } from "../agreements";
+import { generatePdf } from "../agreements/pdf";
+import { get as getPdf, upload as uploadPdf } from "storage";
 
 export const server = {
-  submitAgreement: defineAction({
+  initiateAgreement: defineAction({
     input: createAgreementRequestSchema,
     handler: async ({ templateId, props }) => {
-      const agreementInstance = factory(templateId as TemplateId, props);
-      // TODO: get()'in sonucu (üretilen HTML) şu an hiçbir yerde kullanılmıyor.
-      // İleride S3'e depolanacak, o zaman bir değişkende tutulup yüklenecek.
-      agreementInstance.get();
+      if (!templateIds.includes(templateId as TemplateId)) {
+        throw new Error(`Unknown templateId: ${templateId}`);
+      }
 
-      // TODO: bu iki insert atomik değil, createAgreement başarılı olup createAgreementEvent
-      // başarısız olursa DB'de karşılığı olmayan bir agreements satırı kalır. Transaction'a al.
+      // TODO: bu iki adım (createAgreement, createAgreementEvent) atomik değil,
+      // biri başarısız olursa öbürü geri alınmıyor. Transaction/rollback'e al.
       const savedAgreement = await createAgreement({ templateId, ...props });
       await createAgreementEvent(savedAgreement.id, "created");
 
       return savedAgreement;
+    },
+  }),
+
+  sendUnsignedAgreement: defineAction({
+    input: z.object({ id: agreementIdSchema }),
+    handler: async ({ id }) => {
+      const agreement = await getAgreementById(id);
+      const agreementInstance = factory(agreement.templateId as TemplateId, agreement);
+      const markdown = agreementInstance.get();
+      const pdf = await generatePdf(markdown);
+      await uploadPdf(`agreements/${id}/contract-unsigned.pdf`, pdf, "application/pdf");
+      await createAgreementEvent(id, "sent");
+
+      // TODO: imzalama linkini agreement.email'e gönder (servis henüz seçilmedi)
     },
   }),
 

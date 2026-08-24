@@ -9,4 +9,4 @@ export const agreementEventTypeSchema = z.enum([
 
 export type AgreementEventType = z.infer<typeof agreementEventTypeSchema>;
 
-export const agreementIdSchema = z.string().uuid();
+export const agreementIdSchema = z.uuid();
