@@ -11,15 +11,18 @@ export const db = drizzle(postgres(config.DATABASE_URL), {
   schema: { ...schema, ...relations },
 });
 
-export async function createAgreement(data: {
+export async function createAgreementWithEvent(data: {
   templateId: string;
   firstName: string;
   lastName: string;
   phoneNumber: string;
   email: string;
 }) {
-  const [agreement] = await db.insert(agreements).values(data).returning();
-  return agreement;
+  return db.transaction(async (tx) => {
+    const [agreement] = await tx.insert(agreements).values(data).returning();
+    await tx.insert(agreementsEvents).values({ agreementId: agreement.id, eventType: "created" });
+    return agreement;
+  });
 }
 
 export async function createAgreementEvent(agreementId: string, eventType: string) {

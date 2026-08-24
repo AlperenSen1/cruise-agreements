@@ -1,6 +1,6 @@
 import { defineAction } from "astro:actions";
 import { z } from "astro/zod";
-import { createAgreement, createAgreementEvent, deleteAgreement, getAgreementById } from "db";
+import { createAgreementEvent, createAgreementWithEvent, deleteAgreement, getAgreementById } from "db";
 import { agreementIdSchema, createAgreementRequestSchema } from "types";
 import { factory, templateIds, type TemplateId } from "../agreements";
 import { generatePdf } from "../agreements/pdf";
@@ -14,32 +14,29 @@ export const server = {
         throw new Error(`Unknown templateId: ${templateId}`);
       }
 
-      // TODO: bu iki adım (createAgreement, createAgreementEvent) atomik değil,
-      // biri başarısız olursa öbürü geri alınmıyor. Transaction/rollback'e al.
-      const savedAgreement = await createAgreement({ templateId, ...props });
-      await createAgreementEvent(savedAgreement.id, "created");
-
-      return savedAgreement;
+      return createAgreementWithEvent({ templateId, ...props });
     },
   }),
 
   sendUnsignedAgreement: defineAction({
     input: z.object({ id: agreementIdSchema }),
     handler: async ({ id }) => {
-      const agreement = await getAgreementById(id);
-      const agreementInstance = factory(agreement.templateId as TemplateId, agreement);
-      const markdown = agreementInstance.get();
-      const pdf = await generatePdf(markdown);
-      await uploadPdf(`agreements/${id}/contract-unsigned.pdf`, pdf, "application/pdf");
+      const agreementRecord = await getAgreementById(id);
+      const agreementInstance = factory(agreementRecord.templateId as TemplateId, agreementRecord);
+      const unsignedContractMarkdown = agreementInstance.get();
+      const unsignedContractPdf = await generatePdf(unsignedContractMarkdown);
+      await uploadPdf(`agreements/${id}/contract-unsigned.pdf`, unsignedContractPdf, "application/pdf");
       await createAgreementEvent(id, "sent");
 
-      // TODO: imzalama linkini agreement.email'e gönder (servis henüz seçilmedi)
+      // TODO: imzalama linkini agreementRecord.email'e gönder (servis henüz seçilmedi)
     },
   }),
 
   removeAgreement: defineAction({
     input: z.object({ id: agreementIdSchema }),
     handler: async ({ id }) => {
+      // TODO: Garage'daki agreements/{id}/contract-*.pdf objeleri temizlenmiyor,
+      // sadece DB satırı (ve cascade ile event'leri) siliniyor. Sahipsiz dosya kalıyor.
       await deleteAgreement(id);
     },
   }),
