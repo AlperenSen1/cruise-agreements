@@ -1,0 +1,148 @@
+---
+import { getAgreementWithLatestEventById } from "db";
+
+const { id } = Astro.params;
+
+let isFinalized = false;
+
+try {
+  const agreement = await getAgreementWithLatestEventById(id!);
+  const latestEventType = agreement.events[0]?.eventType;
+  isFinalized = latestEventType === "signed" || latestEventType === "rejected";
+} catch {
+  return new Response("Agreement not found", { status: 404 });
+}
+---
+
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width" />
+		<title>Sign Agreement</title>
+		<style>
+			body {
+				max-width: 720px;
+				margin: 3rem auto;
+				padding: 0 1.5rem;
+				font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+			}
+			iframe {
+				width: 100%;
+				height: 80vh;
+				border: 1px solid #e2e2e7;
+				border-radius: 8px;
+			}
+			.signatureArea {
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				gap: 1rem;
+				margin-top: 1.5rem;
+			}
+			#signaturePad {
+				border: 1px solid #e2e2e7;
+				border-radius: 8px;
+			}
+			.actionButtons {
+				display: flex;
+				justify-content: center;
+				gap: 1rem;
+				margin-top: 1rem;
+			}
+		</style>
+	</head>
+	<body>
+		<h1>Sign Agreement</h1>
+
+		{
+			isFinalized ? (
+				<p id="finalizedMessage">This agreement has already been finalized. Thank you.</p>
+			) : (
+				<>
+					<div id="signingUI">
+						<iframe id="pdfViewer"></iframe>
+						<p id="pdfErrorMessage" style="display: none;">The document could not be loaded. Please try again later.</p>
+						<div class="signatureArea">
+							<canvas id="signaturePad" width="400" height="150"></canvas>
+							<button id="clearButton" type="button">Clear</button>
+						</div>
+						<div class="actionButtons">
+							<button id="submitButton" type="button">Submit</button>
+							<button id="rejectButton" type="button">Reject</button>
+						</div>
+					</div>
+					<p id="successMessage" style="display: none;">Thank you. Your response has been recorded.</p>
+				</>
+			)
+		}
+
+		<script>
+			import { actions } from "astro:actions";
+			import SignaturePad from "signature_pad";
+
+			const id = window.location.pathname.split("/").pop();
+			const pdfViewer = document.getElementById("pdfViewer");
+
+			if (pdfViewer) {
+				const { data: pdfBytes, error } = await actions.getUnsignedAgreementPdf({ id });
+
+				if (error) {
+					pdfViewer.style.display = "none";
+					document.getElementById("pdfErrorMessage").style.display = "block";
+				} else {
+					const blob = new Blob([pdfBytes], { type: "application/pdf" });
+					pdfViewer.src = URL.createObjectURL(blob);
+					await actions.markAgreementViewed({ id });
+				}
+			}
+
+			const canvas = document.getElementById("signaturePad") as HTMLCanvasElement;
+
+			if (canvas) {
+				const signaturePad = new SignaturePad(canvas);
+
+				document.getElementById("clearButton").addEventListener("click", () => {
+					signaturePad.clear();
+				});
+
+				document.getElementById("submitButton").addEventListener("click", async () => {
+					if (signaturePad.isEmpty()) {
+						alert("Please provide a signature before submitting.");
+						return;
+					}
+
+					const confirmed = confirm("Are you sure you want to submit this agreement?");
+					if (!confirmed) {
+						return;
+					}
+
+					const signatureImage = signaturePad.toDataURL("image/svg+xml");
+					const { error } = await actions.submitSignedAgreement({ id, signatureImage });
+
+					if (error) {
+						alert(error.message);
+					} else {
+						document.getElementById("signingUI").style.display = "none";
+						document.getElementById("successMessage").style.display = "block";
+					}
+				});
+
+				document.getElementById("rejectButton").addEventListener("click", async () => {
+					const confirmed = confirm("Are you sure you want to reject this agreement?");
+					if (!confirmed) {
+						return;
+					}
+
+					const { error } = await actions.rejectAgreement({ id });
+
+					if (error) {
+						alert(error.message);
+					} else {
+						document.getElementById("signingUI").style.display = "none";
+						document.getElementById("successMessage").style.display = "block";
+					}
+				});
+			}
+		</script>
+	</body>
+</html>

@@ -3,5 +3,5 @@ export interface AgreementTemplate {
   firstName: string;
   lastName: string;
   phoneNumber: string;
-  get: () => string;
+  get: (signatureImage?: string) => string;
 }

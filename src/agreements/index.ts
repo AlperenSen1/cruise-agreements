@@ -8,10 +8,10 @@ export type TemplateId = (typeof registry)[number]["templateId"];
 
 export const templateIds: TemplateId[] = registry.map((entry) => entry.templateId);
 
-export const factory = (templateId: TemplateId, props: any) => {
-  const entry = registry.find((item) => item.templateId === templateId);
+export const factory = (agreement: { templateId: string }) => {
+  const entry = registry.find((item) => item.templateId === agreement.templateId);
   if (!entry) {
-    throw new Error(`Unknown templateId: ${templateId}`);
+    throw new Error(`Unknown templateId: ${agreement.templateId}`);
   }
-  return new entry.TemplateClass(props);
+  return new entry.TemplateClass(agreement);
 };

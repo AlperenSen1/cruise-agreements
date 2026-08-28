@@ -18,8 +18,12 @@
     "@astrojs/node": "^11.1.4",
     "@mdpdf/mdpdf": "^0.1.7",
     "astro": "^7.2.4",
+    "better-auth": "^1.7.2",
+    "config": "workspace:*",
     "db": "workspace:*",
     "handlebars": "^4.7.9",
+    "resend": "^6.22.0",
+    "signature_pad": "^5.1.4",
     "storage": "workspace:*",
     "types": "workspace:*"
   }

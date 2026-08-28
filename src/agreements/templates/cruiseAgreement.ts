@@ -8,7 +8,11 @@ type CruiseAgreementProps = {
   phoneNumber: string;
 };
 
-const template = Handlebars.compile<CruiseAgreementProps>(templateSource);
+type CruiseAgreementTemplateData = CruiseAgreementProps & {
+  signatureImage?: string;
+};
+
+const template = Handlebars.compile<CruiseAgreementTemplateData>(templateSource);
 
 export class CruiseAgreement implements AgreementTemplate {
   templateId = "cruise-agreement";
@@ -22,11 +26,12 @@ export class CruiseAgreement implements AgreementTemplate {
     this.phoneNumber = props.phoneNumber;
   }
 
-  get = () => {
+  get = (signatureImage?: string) => {
     return template({
       firstName: this.firstName,
       lastName: this.lastName,
       phoneNumber: this.phoneNumber,
+      signatureImage,
     });
   };
 }

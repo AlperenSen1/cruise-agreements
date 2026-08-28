@@ -47,9 +47,17 @@ export async function getAgreementsWithLatestEvent({ limit, offset }: Agreements
   });
 }
 
-export async function getAgreementById(id: string) {
+export async function getAgreementWithLatestEventById(id: string) {
   const validId = agreementIdSchema.parse(id);
-  const [agreement] = await db.select().from(agreements).where(eq(agreements.id, validId));
+  const agreement = await db.query.agreements.findFirst({
+    where: eq(agreements.id, validId),
+    with: {
+      events: {
+        orderBy: desc(agreementsEvents.createdAt),
+        limit: 1,
+      },
+    },
+  });
   if (!agreement) {
     throw new Error(`Agreement not found: ${id}`);
   }

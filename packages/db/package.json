@@ -5,7 +5,8 @@
   "private": true,
   "exports": {
     ".": "./src/client.ts",
-    "./schema": "./src/schema.ts"
+    "./schema": "./src/schema.ts",
+    "./authSchema": "./src/authSchema.ts"
   },
   "scripts": {
     "db:generate": "drizzle-kit generate",

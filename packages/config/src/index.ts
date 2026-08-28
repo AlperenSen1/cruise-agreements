@@ -7,6 +7,10 @@ const envSchema = z.object({
   GARAGE_BUCKET: z.string(),
   GARAGE_ACCESS_KEY: z.string(),
   GARAGE_SECRET_KEY: z.string(),
+  RESEND_API_KEY: z.string(),
+  APP_BASE_URL: z.string(),
+  BETTER_AUTH_SECRET: z.string().min(32),
+  BETTER_AUTH_URL: z.url(),
 });
 
 export const config = envSchema.parse(import.meta.env);

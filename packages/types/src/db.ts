@@ -5,6 +5,7 @@ export const agreementEventTypeSchema = z.enum([
   "sent",
   "viewed",
   "signed",
+  "rejected",
 ]);
 
 export type AgreementEventType = z.infer<typeof agreementEventTypeSchema>;
