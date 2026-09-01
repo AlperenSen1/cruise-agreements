@@ -12,4 +12,7 @@ const envSchema = z.object({
   BETTER_AUTH_SECRET: z.string().min(32),
 });
 
+// Fail fast at boot if a required env var is missing or malformed, instead of
+// failing unpredictably deep inside a request later. See .env.example for the
+// full list of variables this app needs.
 export const config = envSchema.parse(import.meta.env);

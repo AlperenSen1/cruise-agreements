@@ -1,15 +1,23 @@
 import { defineMiddleware } from "astro:middleware";
 import { auth } from "./auth";
 
-const protectedActionNames = ["initiateAgreement", "sendUnsignedAgreement"];
+const publicActionNames = [
+  "submitSignedAgreement",
+  "rejectAgreement",
+  "getUnsignedAgreementPdf",
+  "markAgreementViewed",
+];
 
 export const onRequest = defineMiddleware(async (context, next) => {
   const isProtectedPage = context.url.pathname.startsWith("/agreements");
-  const isProtectedAction = protectedActionNames.some(
+  const isActionRequest = context.url.pathname.startsWith("/_actions/");
+  const isPublicAction = publicActionNames.some(
     (name) => context.url.pathname === `/_actions/${name}`,
   );
 
-  if (!isProtectedPage && !isProtectedAction) {
+  const requiresAuth = isProtectedPage || (isActionRequest && !isPublicAction);
+
+  if (!requiresAuth) {
     return next();
   }
 

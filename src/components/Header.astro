@@ -1,0 +1,55 @@
+---
+interface Props {
+  showSignOut?: boolean;
+}
+
+const { showSignOut = false } = Astro.props;
+---
+
+<header class="siteHeader">
+  <img src="/logo.png" alt="Keşif & Ötesi" />
+  {showSignOut && <button id="signOutButton" type="button">Sign Out</button>}
+</header>
+
+<style>
+  .siteHeader {
+    height: 2cm;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 1.5rem;
+    border-bottom: 1px solid #e2e2e7;
+  }
+  .siteHeader img {
+    height: 60%;
+    width: auto;
+  }
+  #signOutButton {
+    padding: 0.4rem 0.9rem;
+    background: #dc2626;
+    border: 1px solid #dc2626;
+    color: white;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+  #signOutButton:hover {
+    opacity: 0.9;
+  }
+</style>
+
+<script>
+  import { createAuthClient } from "better-auth/client";
+
+  const signOutButton = document.getElementById("signOutButton");
+
+  if (signOutButton) {
+    const authClient = createAuthClient();
+
+    signOutButton.addEventListener("click", async () => {
+      await authClient.signOut();
+      location.href = "/login";
+    });
+  }
+</script>

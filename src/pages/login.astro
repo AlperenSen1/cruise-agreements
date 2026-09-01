@@ -1,4 +1,5 @@
 ---
+import Header from "../components/Header.astro";
 ---
 
 <html lang="en">
@@ -16,11 +17,14 @@
 			}
 
 			body {
+				margin: 0;
+				font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+				color: var(--text);
+			}
+			.pageContent {
 				max-width: 360px;
 				margin: 6rem auto;
 				padding: 0 1.5rem;
-				font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-				color: var(--text);
 			}
 
 			h1 {
@@ -68,6 +72,9 @@
 		</style>
 	</head>
 	<body>
+		<Header />
+
+		<div class="pageContent">
 		<h1>Sign In</h1>
 
 		<form id="loginForm">
@@ -101,5 +108,6 @@
 				}
 			});
 		</script>
+		</div>
 	</body>
 </html>

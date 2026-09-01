@@ -1,5 +1,6 @@
 ---
 import { getAgreementWithLatestEventById } from "db";
+import Header from "../../components/Header.astro";
 
 const { id } = Astro.params;
 
@@ -21,10 +22,13 @@ try {
 		<title>Sign Agreement</title>
 		<style>
 			body {
+				margin: 0;
+				font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+			}
+			.pageContent {
 				max-width: 720px;
 				margin: 3rem auto;
 				padding: 0 1.5rem;
-				font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
 			}
 			iframe {
 				width: 100%;
@@ -52,6 +56,9 @@ try {
 		</style>
 	</head>
 	<body>
+		<Header />
+
+		<div class="pageContent">
 		<h1>Sign Agreement</h1>
 
 		{
@@ -144,5 +151,6 @@ try {
 				});
 			}
 		</script>
+		</div>
 	</body>
 </html>

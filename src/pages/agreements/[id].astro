@@ -1,0 +1,617 @@
+---
+import { getAgreementWithEventsById } from "db";
+import Header from "../../components/Header.astro";
+
+const { id } = Astro.params;
+
+let agreement;
+try {
+  agreement = await getAgreementWithEventsById(id!);
+} catch {
+  return new Response("Agreement not found", { status: 404 });
+}
+
+const eventMap = new Map(agreement.events.map((e) => [e.eventType, e.createdAt]));
+const finalEventType = eventMap.has("rejected") ? "rejected" : "signed";
+
+const statusMeta = {
+  created: { label: "Created", bg: "#f1f1f0", text: "#5f5e5a" },
+  sent: { label: "Sent", bg: "#e6f1fb", text: "#0c447c" },
+  viewed: { label: "Viewed", bg: "#faeeda", text: "#854f0b" },
+  signed: { label: "Signed", bg: "#eaf3de", text: "#27500a" },
+  rejected: { label: "Rejected", bg: "#fcebeb", text: "#791f1f" },
+};
+
+const timelineSteps = [
+  { label: "Created", timestamp: eventMap.get("created") },
+  { label: "Sent", timestamp: eventMap.get("sent") },
+  { label: "Viewed", timestamp: eventMap.get("viewed") },
+  { label: finalEventType === "rejected" ? "Rejected" : "Signed", timestamp: eventMap.get(finalEventType) },
+];
+
+const detailFields = [
+  { label: "First Name", value: agreement.firstName },
+  { label: "Last Name", value: agreement.lastName },
+  { label: "Email", value: agreement.email },
+  { label: "Phone", value: agreement.phoneNumber },
+  { label: "Template", value: agreement.templateId },
+];
+
+const latestEventType = agreement.events[agreement.events.length - 1].eventType;
+const isEditable = latestEventType === "created";
+const currentStatus = statusMeta[latestEventType as keyof typeof statusMeta];
+
+const hasUnsignedDocument = eventMap.has("sent");
+const hasSignedDocument = eventMap.has("signed");
+
+function getInitials(firstName: string, lastName: string) {
+  return `${firstName[0] ?? ""}${lastName[0] ?? ""}`.toUpperCase();
+}
+
+function formatDate(date: Date) {
+  const d = String(date.getDate()).padStart(2, "0");
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const y = date.getFullYear();
+  const hh = String(date.getHours()).padStart(2, "0");
+  const mm = String(date.getMinutes()).padStart(2, "0");
+  return `${d}/${m}/${y} ${hh}:${mm}`;
+}
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>{agreement.firstName} {agreement.lastName}</title>
+    <style>
+      :root {
+        --border: #e2e2e7;
+        --text: #1c1c1f;
+        --muted: #6b6b76;
+        --accent: #2563eb;
+        --danger: #dc2626;
+        --page-bg: #f5f5f7;
+        --panel-bg: #ffffff;
+      }
+      body {
+        margin: 0;
+        background: var(--page-bg);
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        color: var(--text);
+      }
+      .page {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 2rem 2.5rem 4rem;
+      }
+      .backLink {
+        display: inline-block;
+        margin-bottom: 1.25rem;
+        color: var(--muted);
+        font-size: 0.85rem;
+        text-decoration: none;
+      }
+      .backLink:hover {
+        color: var(--text);
+        text-decoration: underline;
+      }
+
+      .profileHeader {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1.5rem;
+        background: var(--panel-bg);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 1.5rem 1.75rem;
+        margin-bottom: 1.5rem;
+      }
+      .profileLeft {
+        display: flex;
+        align-items: center;
+        gap: 1.1rem;
+        min-width: 0;
+      }
+      .avatar {
+        width: 56px;
+        height: 56px;
+        flex-shrink: 0;
+        border-radius: 50%;
+        background: #e6f1fb;
+        color: #0c447c;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.1rem;
+        font-weight: 700;
+      }
+      .profileNameRow {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+      }
+      .profileNameRow h1 {
+        font-size: 1.35rem;
+        font-weight: 700;
+        margin: 0;
+      }
+      .profileSubtitle {
+        margin: 0.3rem 0 0;
+        font-size: 0.88rem;
+        color: var(--muted);
+      }
+      .statusPill {
+        display: inline-block;
+        padding: 0.25rem 0.8rem;
+        border-radius: 999px;
+        font-size: 0.78rem;
+        font-weight: 600;
+      }
+      .profileActions {
+        display: flex;
+        gap: 0.6rem;
+        flex-shrink: 0;
+      }
+      #editButton,
+      #deleteButton {
+        padding: 0.5rem 1.1rem;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        border: none;
+        color: white;
+      }
+      #editButton {
+        background: var(--accent);
+      }
+      #deleteButton {
+        background: var(--danger);
+      }
+      #editButton:hover,
+      #deleteButton:hover {
+        opacity: 0.9;
+      }
+      #editButton:disabled,
+      #deleteButton:disabled {
+        background: #e5e5e8;
+        color: #9c9ca3;
+        cursor: not-allowed;
+        opacity: 1;
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.5rem;
+        align-items: start;
+      }
+
+      .panel {
+        background: var(--panel-bg);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 1.5rem 1.75rem;
+      }
+      .panel h2 {
+        font-size: 1rem;
+        font-weight: 700;
+        margin: 0 0 1.1rem;
+      }
+      .panel + .panel {
+        margin-top: 1.5rem;
+      }
+
+      .fieldList {
+        display: flex;
+        flex-direction: column;
+        gap: 0.65rem;
+      }
+      .fieldBox {
+        background: #fafafb;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 0.6rem 0.8rem;
+      }
+      .fieldLabel {
+        display: block;
+        font-size: 0.75rem;
+        color: var(--muted);
+      }
+      .fieldValue {
+        display: block;
+        margin-top: 0.15rem;
+        font-size: 0.92rem;
+        font-weight: 500;
+      }
+
+      #editForm {
+        display: none;
+        margin-top: 1rem;
+      }
+      #editForm label {
+        font-size: 0.78rem;
+        color: var(--muted);
+        margin-top: 0.9rem;
+        display: block;
+      }
+      #editForm label:first-child {
+        margin-top: 0;
+      }
+      #editForm input {
+        width: 100%;
+        margin-top: 0.25rem;
+        padding: 0.55rem 0.65rem;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        font-size: 0.9rem;
+        box-sizing: border-box;
+      }
+      .phoneInputWrap {
+        display: flex;
+        align-items: center;
+        margin-top: 0.25rem;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      .phonePrefix {
+        padding: 0.55rem 0 0.55rem 0.65rem;
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+      .phoneInputWrap input {
+        margin-top: 0;
+        border: none;
+        border-radius: 0;
+      }
+      .editActions {
+        margin-top: 1.25rem;
+        display: flex;
+        gap: 0.5rem;
+      }
+      .editActions button {
+        padding: 0.5rem 1.1rem;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        cursor: pointer;
+      }
+      .editActions button[type="submit"] {
+        background: var(--accent);
+        border: none;
+        color: white;
+        font-weight: 600;
+      }
+      .editActions button[type="button"] {
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--text);
+      }
+
+      .documentRow {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.7rem 0.9rem;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        margin-bottom: 0.6rem;
+        background: #fafafb;
+      }
+      .documentRow:last-child {
+        margin-bottom: 0;
+      }
+      .documentName {
+        font-size: 0.88rem;
+        font-weight: 600;
+      }
+      .documentMeta {
+        display: block;
+        margin-top: 0.15rem;
+        font-size: 0.76rem;
+        color: var(--muted);
+        font-weight: 400;
+      }
+      .documentRow button {
+        padding: 0.4rem 0.9rem;
+        border-radius: 7px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        cursor: pointer;
+        border: 1px solid var(--accent);
+        background: white;
+        color: var(--accent);
+      }
+      .noDocuments {
+        margin: 0;
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+
+      .timeline {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+      }
+      .timeline li {
+        position: relative;
+        padding: 0 0 1.9rem 2.25rem;
+      }
+      .timeline li:last-child {
+        padding-bottom: 0;
+      }
+      .timeline li::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 0.15rem;
+        width: 0.9rem;
+        height: 0.9rem;
+        border-radius: 50%;
+        background: white;
+        border: 2px solid var(--border);
+      }
+      .timeline li::after {
+        content: "";
+        position: absolute;
+        left: 0.38rem;
+        top: 1.25rem;
+        bottom: -0.4rem;
+        border-left: 2px dotted var(--border);
+      }
+      .timeline li:last-child::after {
+        display: none;
+      }
+      .timeline li.done::before {
+        background: var(--accent);
+        border-color: var(--accent);
+      }
+      .timeline li.done::after {
+        border-left-color: var(--accent);
+      }
+      .timelineLabel {
+        display: block;
+        font-weight: 600;
+        font-size: 0.92rem;
+      }
+      .timeline li.pending .timelineLabel,
+      .timeline li.pending .timelineDate {
+        color: var(--muted);
+        font-weight: 400;
+      }
+      .timelineDate {
+        display: block;
+        margin-top: 0.15rem;
+        font-size: 0.8rem;
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <Header showSignOut={true} />
+
+    <div class="page">
+      <a href="/agreements" class="backLink">&larr; Back to Agreements</a>
+
+      <div class="profileHeader">
+        <div class="profileLeft">
+          <div class="avatar">{getInitials(agreement.firstName, agreement.lastName)}</div>
+          <div>
+            <div class="profileNameRow">
+              <h1>{agreement.firstName} {agreement.lastName}</h1>
+              <span class="statusPill" style={`background: ${currentStatus.bg}; color: ${currentStatus.text};`}>
+                {currentStatus.label}
+              </span>
+            </div>
+            <p class="profileSubtitle">{agreement.email} &middot; {agreement.phoneNumber}</p>
+          </div>
+        </div>
+        <div class="profileActions">
+          <button id="editButton" type="button" disabled={!isEditable}>Edit</button>
+          <button id="deleteButton" type="button" data-id={agreement.id} disabled={!isEditable}>Delete</button>
+        </div>
+      </div>
+
+      <div class="layout">
+        <div>
+          <div class="panel">
+            <h2>Agreement Details</h2>
+            <div id="detailsView" class="fieldList">
+              {detailFields.map((field) => (
+                <div class="fieldBox">
+                  <span class="fieldLabel">{field.label}</span>
+                  <span class="fieldValue">{field.value}</span>
+                </div>
+              ))}
+            </div>
+
+            {isEditable && (
+              <form id="editForm" data-id={agreement.id} data-phone={agreement.phoneNumber}>
+                <label for="editFirstName">First Name</label>
+                <input id="editFirstName" name="firstName" type="text" value={agreement.firstName} required />
+
+                <label for="editLastName">Last Name</label>
+                <input id="editLastName" name="lastName" type="text" value={agreement.lastName} required />
+
+                <label for="editEmail">Email</label>
+                <input id="editEmail" name="email" type="email" value={agreement.email} required />
+
+                <label for="editPhoneNumber">Phone</label>
+                <div class="phoneInputWrap">
+                  <span class="phonePrefix">0</span>
+                  <input id="editPhoneNumber" name="phoneNumber" type="text" required />
+                </div>
+
+                <div class="editActions">
+                  <button type="submit">Save</button>
+                  <button type="button" id="cancelEditButton">Cancel</button>
+                </div>
+              </form>
+            )}
+          </div>
+
+          <div class="panel">
+            <h2>Documents</h2>
+            {!hasUnsignedDocument && !hasSignedDocument && (
+              <p class="noDocuments">No documents yet.</p>
+            )}
+            {hasUnsignedDocument && (
+              <div class="documentRow">
+                <span class="documentName">
+                  Unsigned Contract
+                  <span class="documentMeta">Uploaded {formatDate(new Date(eventMap.get("sent")!))}</span>
+                </span>
+                <button type="button" id="viewUnsignedButton" data-id={agreement.id}>View</button>
+              </div>
+            )}
+            {hasSignedDocument && (
+              <div class="documentRow">
+                <span class="documentName">
+                  Signed Contract
+                  <span class="documentMeta">Uploaded {formatDate(new Date(eventMap.get("signed")!))}</span>
+                </span>
+                <button type="button" id="viewSignedButton" data-id={agreement.id}>View</button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div class="panel">
+          <h2>Timeline</h2>
+          <ul class="timeline">
+            {timelineSteps.map((step) => (
+              <li class={step.timestamp ? "done" : "pending"}>
+                <span class="timelineLabel">{step.label}</span>
+                <span class="timelineDate">
+                  {step.timestamp ? formatDate(new Date(step.timestamp)) : "—"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      import { actions } from "astro:actions";
+
+      function formatPhoneNumber(value: string) {
+        const digits = value.replace(/\D/g, "").slice(0, 10);
+        const area = digits.slice(0, 3);
+        const first = digits.slice(3, 6);
+        const second = digits.slice(6, 8);
+        const third = digits.slice(8, 10);
+
+        let formatted = "";
+        if (area) formatted += `(${area}`;
+        if (area.length === 3) formatted += ") ";
+        if (first) formatted += first;
+        if (first.length === 3) formatted += " ";
+        if (second) formatted += second;
+        if (second.length === 2) formatted += " ";
+        if (third) formatted += third;
+
+        return formatted;
+      }
+
+      const editButton = document.getElementById("editButton");
+      const editForm = document.getElementById("editForm") as HTMLFormElement | null;
+
+      if (editButton && editForm) {
+        const detailsView = document.getElementById("detailsView") as HTMLElement;
+        const cancelEditButton = document.getElementById("cancelEditButton") as HTMLButtonElement;
+        const phoneInput = document.getElementById("editPhoneNumber") as HTMLInputElement;
+
+        phoneInput.value = formatPhoneNumber(editForm.dataset.phone ?? "");
+
+        phoneInput.addEventListener("input", () => {
+          phoneInput.value = formatPhoneNumber(phoneInput.value);
+        });
+
+        editButton.addEventListener("click", () => {
+          detailsView.style.display = "none";
+          editForm.style.display = "block";
+        });
+
+        cancelEditButton.addEventListener("click", () => {
+          editForm.reset();
+          phoneInput.value = formatPhoneNumber(editForm.dataset.phone ?? "");
+          editForm.style.display = "none";
+          detailsView.style.display = "flex";
+        });
+
+        editForm.addEventListener("submit", async (event) => {
+          event.preventDefault();
+
+          const id = editForm.dataset.id;
+          const firstName = (document.getElementById("editFirstName") as HTMLInputElement).value;
+          const lastName = (document.getElementById("editLastName") as HTMLInputElement).value;
+          const email = (document.getElementById("editEmail") as HTMLInputElement).value;
+          const phoneNumber = phoneInput.value.replace(/\D/g, "");
+
+          const { error } = await actions.editAgreementDetails({ id, firstName, lastName, email, phoneNumber });
+
+          if (error) {
+            alert(error.message);
+          } else {
+            location.reload();
+          }
+        });
+      }
+
+      const deleteButton = document.getElementById("deleteButton") as HTMLButtonElement | null;
+
+      if (deleteButton && !deleteButton.disabled) {
+        deleteButton.addEventListener("click", async () => {
+          const confirmed = confirm("Are you sure you want to delete this agreement?");
+          if (!confirmed) {
+            return;
+          }
+
+          const { error } = await actions.removeAgreement({ id: deleteButton.dataset.id });
+
+          if (error) {
+            alert(error.message);
+          } else {
+            location.href = "/agreements";
+          }
+        });
+      }
+
+      const viewUnsignedButton = document.getElementById("viewUnsignedButton") as HTMLButtonElement | null;
+
+      if (viewUnsignedButton) {
+        viewUnsignedButton.addEventListener("click", async () => {
+          const id = viewUnsignedButton.dataset.id;
+          const { data: pdfBytes, error } = await actions.getUnsignedAgreementPdf({ id });
+
+          if (error) {
+            alert(error.message);
+            return;
+          }
+
+          const blob = new Blob([pdfBytes], { type: "application/pdf" });
+          window.open(URL.createObjectURL(blob), "_blank");
+        });
+      }
+
+      const viewSignedButton = document.getElementById("viewSignedButton") as HTMLButtonElement | null;
+
+      if (viewSignedButton) {
+        viewSignedButton.addEventListener("click", async () => {
+          const id = viewSignedButton.dataset.id;
+          const { data: pdfBytes, error } = await actions.getSignedAgreementPdf({ id });
+
+          if (error) {
+            alert(error.message);
+            return;
+          }
+
+          const blob = new Blob([pdfBytes], { type: "application/pdf" });
+          window.open(URL.createObjectURL(blob), "_blank");
+        });
+      }
+    </script>
+  </body>
+</html>

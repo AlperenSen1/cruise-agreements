@@ -33,11 +33,18 @@ export async function createAgreementEvent(agreementId: string, eventType: strin
   });
 }
 
-export async function getAgreementsWithLatestEvent({ limit, offset }: AgreementsListQuery) {
-  return db.query.agreements.findMany({
+export async function getAgreementsWithLatestEvent({
+  limit,
+  offset,
+  status,
+  firstName,
+  lastName,
+  email,
+  phoneNumber,
+  sort,
+}: AgreementsListQuery) {
+  const allAgreements = await db.query.agreements.findMany({
     orderBy: desc(agreements.createdAt),
-    limit,
-    offset,
     with: {
       events: {
         orderBy: desc(agreementsEvents.createdAt),
@@ -45,6 +52,33 @@ export async function getAgreementsWithLatestEvent({ limit, offset }: Agreements
       },
     },
   });
+
+  let filtered = allAgreements;
+
+  if (status) {
+    filtered = filtered.filter((agreement) => agreement.events[0].eventType === status);
+  }
+  if (firstName) {
+    filtered = filtered.filter((agreement) =>
+      agreement.firstName.toLowerCase().includes(firstName.toLowerCase()),
+    );
+  }
+  if (lastName) {
+    filtered = filtered.filter((agreement) =>
+      agreement.lastName.toLowerCase().includes(lastName.toLowerCase()),
+    );
+  }
+  if (email) {
+    filtered = filtered.filter((agreement) => agreement.email.toLowerCase().includes(email.toLowerCase()));
+  }
+  if (phoneNumber) {
+    filtered = filtered.filter((agreement) => agreement.phoneNumber.includes(phoneNumber));
+  }
+  if (sort === "oldest") {
+    filtered = [...filtered].reverse();
+  }
+
+  return { items: filtered.slice(offset, offset + limit), total: filtered.length };
 }
 
 export async function getAgreementWithLatestEventById(id: string) {
@@ -62,6 +96,50 @@ export async function getAgreementWithLatestEventById(id: string) {
     throw new Error(`Agreement not found: ${id}`);
   }
   return agreement;
+}
+
+export async function getAgreementStatusCounts() {
+  const allAgreements = await db.query.agreements.findMany({
+    with: {
+      events: {
+        orderBy: desc(agreementsEvents.createdAt),
+        limit: 1,
+      },
+    },
+  });
+
+  const counts: Record<string, number> = {};
+  for (const agreement of allAgreements) {
+    const eventType = agreement.events[0].eventType;
+    counts[eventType] = (counts[eventType] ?? 0) + 1;
+  }
+  return counts;
+}
+
+export async function getAgreementWithEventsById(id: string) {
+  const validId = agreementIdSchema.parse(id);
+  const agreement = await db.query.agreements.findFirst({
+    where: eq(agreements.id, validId),
+    with: {
+      events: {
+        orderBy: agreementsEvents.createdAt,
+      },
+    },
+  });
+  if (!agreement) {
+    throw new Error(`Agreement not found: ${id}`);
+  }
+  return agreement;
+}
+
+export async function updateAgreement(id: string, data: {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phoneNumber: string;
+}) {
+  const validId = agreementIdSchema.parse(id);
+  await db.update(agreements).set(data).where(eq(agreements.id, validId));
 }
 
 export async function deleteAgreement(id: string) {

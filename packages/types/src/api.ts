@@ -1,8 +1,15 @@
 import { z } from "zod";
+import { agreementEventTypeSchema } from "./db";
 
 export const agreementsListQuerySchema = z.object({
   limit: z.coerce.number().int().positive().default(20),
   offset: z.coerce.number().int().nonnegative().default(0),
+  status: agreementEventTypeSchema.optional(),
+  firstName: z.string().optional(),
+  lastName: z.string().optional(),
+  email: z.string().optional(),
+  phoneNumber: z.string().optional(),
+  sort: z.enum(["newest", "oldest"]).default("newest"),
 });
 
 export type AgreementsListQuery = z.infer<typeof agreementsListQuerySchema>;
