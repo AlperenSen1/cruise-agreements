@@ -55,7 +55,7 @@ try {
 			}
 		</style>
 	</head>
-	<body>
+	<body data-id={id}>
 		<Header />
 
 		<div class="pageContent">
@@ -87,7 +87,7 @@ try {
 			import { actions } from "astro:actions";
 			import SignaturePad from "signature_pad";
 
-			const id = window.location.pathname.split("/").pop();
+			const id = document.body.dataset.id;
 			const pdfViewer = document.getElementById("pdfViewer");
 
 			if (pdfViewer) {
